@@ -31,7 +31,7 @@ client = discord.Client()
 
 # 文字列の変換
 def convertText(message):
-    convertText = re.sub('[wWwW]+', 'わらわら', message)
+    convertText = re.sub('[wWwWｗ]+', 'わらわら', message)
     print(f"元メッセージ: {message}")
     print(f"変換後: {convertText}")
     return convertText
