@@ -16,6 +16,7 @@ COMMAND_END = "bye"
 COMMAND_HELP = "help"
 botJoinChannel = None
 secret_name = "shovelsugi"
+fujieda = "GOD"
 
 # DISCORD_TOKEN取得
 try:
