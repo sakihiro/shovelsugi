@@ -15,6 +15,7 @@ COMMAND_START = "shl"
 COMMAND_END = "bye"
 COMMAND_HELP = "help"
 botJoinChannel = None
+botJoinVoiceChannel = None
 secret_name = "shovelsugi"
 
 # DISCORD_TOKEN取得
@@ -42,10 +43,28 @@ async def on_ready():
     # 起動したらターミナルにログイン通知が表示される
     print('ログインしました')
 
+# VCでのメンバーの入退室時に動作する処理
+@client.event
+async def on_voice_state_update(member, before, after): 
+    global botJoinChannel, botJoinVoiceChannel
+    # 入退室がbotの場合
+    if member.bot:
+        # 何もせず終了
+        return
+    # botがVCに参加していない場合
+    if botJoinVoiceChannel is None:
+        # 何もせず終了
+        return
+    # botJoinVoiceChannelからメンバーが退室時
+    if before.channel == botJoinVoiceChannel: 
+        # botJoinVoiceChannelにいるメンバーの人数チェック
+        if len(before.channel.members) == 1:
+            await member.guild.voice_client.disconnect()
+
 # メッセージ受信時に動作する処理
 @client.event
 async def on_message(message):
-    global botJoinChannel
+    global botJoinChannel, botJoinVoiceChannel
     author = message.author
     if message.author.voice != None:
         authorChannelId = message.author.voice.channel
@@ -70,12 +89,14 @@ async def on_message(message):
             await message.author.voice.channel.connect()
             await message.channel.send("接続しました。")
             botJoinChannel = message.channel
+            botJoinVoiceChannel = message.author.voice.channel
         # botの切断
         if command == COMMAND_END:
             if message.guild.voice_client is None:
                 await message.channel.send("どこも使ってません")
                 return
             botJoinChannel = None
+            botJoinVoiceChannel = None
             await message.guild.voice_client.disconnect()
             await message.channel.send("切断しました。")
         # helpコマンド
