@@ -2,6 +2,7 @@
 import discord
 import boto3
 import re
+from collections import deque
 from botocore.exceptions import ClientError
 
 # AWSライブラリ
@@ -17,6 +18,7 @@ COMMAND_HELP = "help"
 botJoinChannel = None
 botJoinVoiceChannel = None
 secret_name = "shovelsugi"
+message_queue = deque([])
 
 # DISCORD_TOKEN取得
 try:
@@ -109,17 +111,21 @@ async def on_message(message):
             """)
     # 通常の文章の場合
     elif botJoinChannel == message.channel:
-        response = polly.synthesize_speech(
-            OutputFormat='mp3',
-            SampleRate='22050',
-            Text=convertText(message.content),
-            TextType='text',
-            VoiceId='Mizuki',
-        )
-        filename = f'{botJoinChannel}_speech.mp3'
-        file = open(filename, 'wb')
-        file.write(response['AudioStream'].read())
-        file.close()
-        message.guild.voice_client.play(discord.FFmpegPCMAudio(filename))
+        message_queue.append(message.content)
+        while(len(message_queue) > 0):
+            response = polly.synthesize_speech(
+                OutputFormat='mp3',
+                SampleRate='22050',
+                Text=convertText(message_queue[0]),
+                TextType='text',
+                VoiceId='Mizuki',
+            )
+            filename = f'{botJoinChannel}_speech.mp3'
+            file = open(filename, 'wb')
+            file.write(response['AudioStream'].read())
+            file.close()
+            message.guild.voice_client.play(discord.FFmpegPCMAudio(filename))
+            message_queue.popleft()
+
 # Botの起動とDiscordサーバーへの接続
 client.run(TOKEN)
