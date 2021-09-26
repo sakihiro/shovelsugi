@@ -91,7 +91,7 @@ def helpMessage():
         ;bye: botの停止
         ;help: コマンド一覧
         ;vc 数字（-50 ~ 200）: 声の高さの変更（;vc 120）
-        ;vc Mizuki/Takumi: 性別の切り替え（;vc Mizuki）
+        ;an Mizuki/Takumi: 性別の切り替え（;an Mizuki）
     """
 
 # 読み上げ速度の調整
