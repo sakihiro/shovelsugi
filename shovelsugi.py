@@ -19,6 +19,7 @@ COMMAND_START = "shl"
 COMMAND_END = "bye"
 COMMAND_HELP = "help"
 COMMAND_VC = "vc"
+COMMAND_AN = "an"
 VC_TABLE = "shovelsugi_vc"
 botJoinChannel = None
 botJoinVoiceChannel = None
@@ -60,15 +61,26 @@ def personalized(user, message):
         TableName=VC_TABLE,
     )
     vocal_tract_length = "100"
-    if "Item" in response: 
-        vocal_tract_length = response["Item"]["vocal_tract_length"]["S"]
+    if not "Item" in response: 
+        return
+    vocal_tract_length = response["Item"]["vocal_tract_length"]["S"]
+    announcer = response["Item"]["announcer"]["S"] if "announcer" in response["Item"] else "Mizuki"
     tag_start = f'<speak><amazon:effect vocal-tract-length="{vocal_tract_length}%">'
     tag_end = '</amazon:effect></speak>'
     personalized_text = tag_start + message + tag_end
     print({
         "元メッセージ": message,
-        "変換後": personalized_text
+        "変換後": personalized_text,
+        "voiceID": announcer,
     })
+    return polly.synthesize_speech(
+            OutputFormat='mp3',
+            SampleRate='22050',
+            Text=personalized_text,
+            TextType='ssml',
+            VoiceId=announcer,
+        )
+ 
     return personalized_text
 
 # helpメッセージ
@@ -79,6 +91,7 @@ def helpMessage():
         ;bye: botの停止
         ;help: コマンド一覧
         ;vc 数字（-50 ~ 200）: 声の高さの変更（;vc 120）
+        ;vc Mizuki/Takumi: 性別の切り替え（;vc Mizuki）
     """
 
 # 読み上げ速度の調整
@@ -100,7 +113,45 @@ def setPitch(vocal_tract_length):
     elif len(vocal_tract_length) <= 200:
         return "-80"
 
-# 
+# shovelsugi_vcからuserIDをキーにデータ取得
+def get_shovelsugi_vc(userID):
+    response = dynamodb.get_item(
+        Key={
+            'userID': {
+                'S': userID,
+            },
+        },
+        TableName=VC_TABLE,
+    )
+    if not "Item" in response: 
+        return "100", "0", "Mizuki"
+    vocal_tract_length = response["Item"]["vocal_tract_length"]["S"] if "vocal_tract_length" in response["Item"] else "100"
+    pitch = response["Item"]["pitch"]["S"] if "pitch" in response["Item"] else "0"
+    announcer = response["Item"]["announcer"]["S"] if "announcer" in response["Item"] else "Mizuki"
+    return vocal_tract_length, pitch, announcer
+
+# shovelsugi_vcからuserIDをキーにデータを設定
+def put_shovelsugi_vc(userID, vocal_tract_length, pitch, announcer):
+    dynamodb.put_item(
+        Item={
+            'userID': {
+                'S': userID,
+            },
+            'vocal_tract_length': {
+                'S': vocal_tract_length,
+            },
+            'pitch': {
+                'S': pitch,
+            },
+            'announcer': {
+                'S': announcer,
+            },
+        },
+        TableName=VC_TABLE,
+    )
+
+
+# 数字に変換可能かの判定
 def is_integer(a):
     try:
         float(a)
@@ -129,8 +180,11 @@ async def on_voice_state_update(member, before, after):
     # botJoinVoiceChannelからメンバーが退室時
     if before.channel == botJoinVoiceChannel: 
         # botJoinVoiceChannelにいるメンバーの人数チェック
-        if len(before.channel.members) == 1:
+        # len(before.channel.members)だとbot入室後のアクティブユーザのみカウントされる
+        if len(before.channel.voice_states.keys()) == 1:
             await member.guild.voice_client.disconnect()
+            botJoinChannel = None
+            botJoinVoiceChannel = None
 
 # メッセージ受信時に動作する処理
 @client.event
@@ -180,7 +234,7 @@ async def on_message(message):
         if command == COMMAND_HELP:
             await message.channel.send(helpMessage())
             return
-        # 読み上げ音量コマンド
+        # 読み上げ声色コマンド
         # ;vc 声帯（数字）
         if command == COMMAND_VC:
             if len(input) != 2:
@@ -197,32 +251,27 @@ async def on_message(message):
                 return
             vocal_tract_length = input[1]
             pitch = setPitch(vocal_tract_length)
-            dynamodb.put_item(
-                Item={
-                    'userID': {
-                        'S': userID,
-                    },
-                    'vocal_tract_length': {
-                        'S': vocal_tract_length,
-                    },
-                    'pitch': {
-                        'S': pitch,
-                    },
-                },
-                TableName=VC_TABLE,
-            )
+            db_vocal_tract_length, db_pitch, db_announcer = get_shovelsugi_vc(userID)
+            put_shovelsugi_vc(userID, vocal_tract_length, pitch, db_announcer)
+            return
+        # 読み上げVCの変更コマンド
+        # ;an Mizuki/Takumi
+        if command == COMMAND_AN:
+            if len(input) != 2:
+                await message.channel.send(";vc MizukiまたはTakumi の形式で入力してください")
+                return
+            if input[1] != "Mizuki" and input[1] != "Takumi":
+                await message.channel.send("MizukiまたはTakumiを指定してください")
+                return
+            announcer = input[1]
+            db_vocal_tract_length, db_pitch, db_announcer = get_shovelsugi_vc(userID)
+            put_shovelsugi_vc(userID, db_vocal_tract_length, db_pitch, announcer)
             return
     # 通常の文章の場合
     elif botJoinChannel == message.channel:
         # 現在時刻の取得
         datetime_now = datetime.datetime.now()
-        response = polly.synthesize_speech(
-            OutputFormat='mp3',
-            SampleRate='22050',
-            Text=personalized(userID, convertText(message.content)),
-            TextType='ssml',
-            VoiceId='Mizuki',
-        )
+        response = personalized(userID, convertText(message.content))
         folder = "mp3/"
         filename = f'{botJoinChannel}_{datetime_now.strftime("%Y%m%d%H%M%S%f")}.mp3'
         file = open(folder + filename, 'wb')
