@@ -1,0 +1,1 @@
+rm -f /home/ec2-user/shovelsugi/mp3/*
