@@ -2,6 +2,8 @@
 import discord
 import boto3
 import re
+import datetime
+import time
 from collections import deque
 from botocore.exceptions import ClientError
 
@@ -111,20 +113,27 @@ async def on_message(message):
             """)
     # 通常の文章の場合
     elif botJoinChannel == message.channel:
-        message_queue.append(message.content)
+        # 現在時刻の取得
+        datetime_now = datetime.datetime.now()
+        response = polly.synthesize_speech(
+            OutputFormat='mp3',
+            SampleRate='22050',
+            Text=convertText(message.content),
+            TextType='text',
+            VoiceId='Mizuki',
+        )
+        folder = "mp3/"
+        filename = f'{botJoinChannel}_{datetime_now.strftime("%Y%m%d%H%M%S%f")}.mp3'
+        file = open(folder + filename, 'wb')
+        file.write(response['AudioStream'].read())
+        file.close()
+
+        message_queue.append(filename)
         while(len(message_queue) > 0):
-            response = polly.synthesize_speech(
-                OutputFormat='mp3',
-                SampleRate='22050',
-                Text=convertText(message_queue[0]),
-                TextType='text',
-                VoiceId='Mizuki',
-            )
-            filename = f'{botJoinChannel}_speech.mp3'
-            file = open(filename, 'wb')
-            file.write(response['AudioStream'].read())
-            file.close()
-            message.guild.voice_client.play(discord.FFmpegPCMAudio(filename))
+            # botが読み上げ中の時は待機
+            while(message.guild.voice_client.is_playing()):
+                time.sleep(1)
+            message.guild.voice_client.play(discord.FFmpegPCMAudio(folder + message_queue[0]))
             message_queue.popleft()
 
 # Botの起動とDiscordサーバーへの接続
