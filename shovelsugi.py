@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 # AWSライブラリ
 polly = boto3.client('polly')
 secretsmanager = boto3.client('secretsmanager')
+dynamodb = boto3.client('dynamodb')
 
 # 変数
 TOKEN = ""
@@ -17,6 +18,8 @@ PREFIX = ";"
 COMMAND_START = "shl"
 COMMAND_END = "bye"
 COMMAND_HELP = "help"
+COMMAND_VC = "vc"
+VC_TABLE = "shovelsugi_vc"
 botJoinChannel = None
 botJoinVoiceChannel = None
 secret_name = "shovelsugi"
@@ -45,6 +48,65 @@ def convertText(message):
         "変換後": convertText
     })
     return convertText
+
+# 文字列の変換
+def personalized(user, message):
+    response = dynamodb.get_item(
+        Key={
+            'userID': {
+                'S': user,
+            },
+        },
+        TableName=VC_TABLE,
+    )
+    vocal_tract_length = "100"
+    if "Item" in response: 
+        vocal_tract_length = response["Item"]["vocal_tract_length"]["S"]
+    tag_start = f'<speak><amazon:effect vocal-tract-length="{vocal_tract_length}%">'
+    tag_end = '</amazon:effect></speak>'
+    personalized_text = tag_start + message + tag_end
+    print({
+        "元メッセージ": message,
+        "変換後": personalized_text
+    })
+    return personalized_text
+
+# helpメッセージ
+def helpMessage():
+    return """
+        使用可能なコマンド
+        ;shl: botの起動
+        ;bye: botの停止
+        ;help: コマンド一覧
+        ;vc 数字（-50 ~ 200）: 声の高さの変更（;vc 120）
+    """
+
+# 読み上げ速度の調整
+def setPitch(vocal_tract_length):
+    if len(vocal_tract_length) < -25:
+        return "30"
+    elif len(vocal_tract_length) < 0:
+        return "20"
+    elif len(vocal_tract_length) < 50:
+        return "10"
+    elif len(vocal_tract_length) <= 100:
+        return "0"
+    elif len(vocal_tract_length) < 125:
+        return "-10"
+    elif len(vocal_tract_length) < 150:
+        return "-20"
+    elif len(vocal_tract_length) < 175:
+        return "-40"
+    elif len(vocal_tract_length) <= 200:
+        return "-80"
+
+# 
+def is_integer(a):
+    try:
+        float(a)
+    except:
+        return False
+    return True
 
 # 起動時に動作する処理
 @client.event
@@ -75,6 +137,10 @@ async def on_voice_state_update(member, before, after):
 async def on_message(message):
     global botJoinChannel, botJoinVoiceChannel
     author = message.author
+    pattern = ".*(#.+)"
+    m = re.match(pattern, str(author))
+    input = message.content.replace(PREFIX, "").split(" ")
+    userID = m.group(1)
     if message.author.voice != None:
         authorChannelId = message.author.voice.channel
     # メッセージ送信者がBotだった場合は無視する
@@ -99,6 +165,7 @@ async def on_message(message):
             await message.channel.send("接続しました。")
             botJoinChannel = message.channel
             botJoinVoiceChannel = message.author.voice.channel
+            return
         # botの切断
         if command == COMMAND_END:
             if message.guild.voice_client is None:
@@ -108,14 +175,43 @@ async def on_message(message):
             botJoinVoiceChannel = None
             await message.guild.voice_client.disconnect()
             await message.channel.send("切断しました。")
+            return
         # helpコマンド
         if command == COMMAND_HELP:
-            await message.channel.send("""
-                使用可能なコマンド
-                ;shl: botの起動
-                ;bye: botの停止
-                ;help: コマンド一覧
-            """)
+            await message.channel.send(helpMessage())
+            return
+        # 読み上げ音量コマンド
+        # ;vc 声帯（数字）
+        if command == COMMAND_VC:
+            if len(input) != 2:
+                await message.channel.send(";vc 数字（-50~200）の形式で入力してください")
+                return
+            if not is_integer(input[1]):
+                await message.channel.send("数字（-50~200）の形式で入力してください")                
+                return
+            if float(input[1]) < -50:
+                await message.channel.send("-50~200の間で入力してください")                
+                return
+            if float(input[1]) > 200:
+                await message.channel.send("-50~200の間で入力してください")                
+                return
+            vocal_tract_length = input[1]
+            pitch = setPitch(vocal_tract_length)
+            dynamodb.put_item(
+                Item={
+                    'userID': {
+                        'S': userID,
+                    },
+                    'vocal_tract_length': {
+                        'S': vocal_tract_length,
+                    },
+                    'pitch': {
+                        'S': pitch,
+                    },
+                },
+                TableName=VC_TABLE,
+            )
+            return
     # 通常の文章の場合
     elif botJoinChannel == message.channel:
         # 現在時刻の取得
@@ -123,8 +219,8 @@ async def on_message(message):
         response = polly.synthesize_speech(
             OutputFormat='mp3',
             SampleRate='22050',
-            Text=convertText(message.content),
-            TextType='text',
+            Text=personalized(userID, convertText(message.content)),
+            TextType='ssml',
             VoiceId='Mizuki',
         )
         folder = "mp3/"
