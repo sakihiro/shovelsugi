@@ -2,6 +2,9 @@
 import discord
 import boto3
 import re
+import datetime
+import time
+from collections import deque
 from botocore.exceptions import ClientError
 
 # AWSライブラリ
@@ -15,7 +18,9 @@ COMMAND_START = "shl"
 COMMAND_END = "bye"
 COMMAND_HELP = "help"
 botJoinChannel = None
+botJoinVoiceChannel = None
 secret_name = "shovelsugi"
+message_queue = deque([])
 
 # DISCORD_TOKEN取得
 try:
@@ -42,10 +47,28 @@ async def on_ready():
     # 起動したらターミナルにログイン通知が表示される
     print('ログインしました')
 
+# VCでのメンバーの入退室時に動作する処理
+@client.event
+async def on_voice_state_update(member, before, after): 
+    global botJoinChannel, botJoinVoiceChannel
+    # 入退室がbotの場合
+    if member.bot:
+        # 何もせず終了
+        return
+    # botがVCに参加していない場合
+    if botJoinVoiceChannel is None:
+        # 何もせず終了
+        return
+    # botJoinVoiceChannelからメンバーが退室時
+    if before.channel == botJoinVoiceChannel: 
+        # botJoinVoiceChannelにいるメンバーの人数チェック
+        if len(before.channel.members) == 1:
+            await member.guild.voice_client.disconnect()
+
 # メッセージ受信時に動作する処理
 @client.event
 async def on_message(message):
-    global botJoinChannel
+    global botJoinChannel, botJoinVoiceChannel
     author = message.author
     if message.author.voice != None:
         authorChannelId = message.author.voice.channel
@@ -70,12 +93,14 @@ async def on_message(message):
             await message.author.voice.channel.connect()
             await message.channel.send("接続しました。")
             botJoinChannel = message.channel
+            botJoinVoiceChannel = message.author.voice.channel
         # botの切断
         if command == COMMAND_END:
             if message.guild.voice_client is None:
                 await message.channel.send("どこも使ってません")
                 return
             botJoinChannel = None
+            botJoinVoiceChannel = None
             await message.guild.voice_client.disconnect()
             await message.channel.send("切断しました。")
         # helpコマンド
@@ -88,6 +113,8 @@ async def on_message(message):
             """)
     # 通常の文章の場合
     elif botJoinChannel == message.channel:
+        # 現在時刻の取得
+        datetime_now = datetime.datetime.now()
         response = polly.synthesize_speech(
             OutputFormat='mp3',
             SampleRate='22050',
@@ -95,10 +122,19 @@ async def on_message(message):
             TextType='text',
             VoiceId='Mizuki',
         )
-        filename = f'{botJoinChannel}_speech.mp3'
-        file = open(filename, 'wb')
+        folder = "mp3/"
+        filename = f'{botJoinChannel}_{datetime_now.strftime("%Y%m%d%H%M%S%f")}.mp3'
+        file = open(folder + filename, 'wb')
         file.write(response['AudioStream'].read())
         file.close()
-        message.guild.voice_client.play(discord.FFmpegPCMAudio(filename))
+
+        message_queue.append(filename)
+        while(len(message_queue) > 0):
+            # botが読み上げ中の時は待機
+            while(message.guild.voice_client.is_playing()):
+                time.sleep(1)
+            message.guild.voice_client.play(discord.FFmpegPCMAudio(folder + message_queue[0]))
+            message_queue.popleft()
+
 # Botの起動とDiscordサーバーへの接続
 client.run(TOKEN)
