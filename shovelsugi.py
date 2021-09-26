@@ -37,7 +37,8 @@ client = discord.Client()
 # 文字列の変換
 def convertText(message):
     # wwをわらわらに変換
-    convertText = re.sub('[wWwWｗ]+', 'あっはっは', message)
+    convertText = re.sub('[wWwWｗ]{5,}', 'あっはっは', message)
+    convertText = re.sub('[wWwWｗ]{2,}', 'わらわら', convertText)
     convertText = re.sub('https?://[\w/:%#\$&\?\(\)~\.=\+\-]+', 'URL省略', convertText)
     print({
         "元メッセージ": message,
