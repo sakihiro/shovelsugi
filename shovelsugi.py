@@ -52,19 +52,7 @@ def convertText(message):
 
 # 文字列の変換
 def personalized(user, message):
-    response = dynamodb.get_item(
-        Key={
-            'userID': {
-                'S': user,
-            },
-        },
-        TableName=VC_TABLE,
-    )
-    vocal_tract_length = "100"
-    if not "Item" in response: 
-        return
-    vocal_tract_length = response["Item"]["vocal_tract_length"]["S"]
-    announcer = response["Item"]["announcer"]["S"] if "announcer" in response["Item"] else "Mizuki"
+    vocal_tract_length, pitch, announcer = get_shovelsugi_vc(user)
     tag_start = f'<speak><amazon:effect vocal-tract-length="{vocal_tract_length}%">'
     tag_end = '</amazon:effect></speak>'
     personalized_text = tag_start + message + tag_end
@@ -123,7 +111,7 @@ def get_shovelsugi_vc(userID):
         },
         TableName=VC_TABLE,
     )
-    if not "Item" in response: 
+    if not "Item" in response:
         return "100", "0", "Mizuki"
     vocal_tract_length = response["Item"]["vocal_tract_length"]["S"] if "vocal_tract_length" in response["Item"] else "100"
     pitch = response["Item"]["pitch"]["S"] if "pitch" in response["Item"] else "0"
