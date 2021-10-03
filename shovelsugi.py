@@ -20,7 +20,9 @@ COMMAND_END = "bye"
 COMMAND_HELP = "help"
 COMMAND_VC = "vc"
 COMMAND_AN = "an"
+COMMAND_ALIAS = "alias"
 VC_TABLE = "shovelsugi_vc"
+ALIAS_TABLE = "shovelsugi_dict"
 botJoinChannel = None
 botJoinVoiceChannel = None
 secret_name = "shovelsugi"
@@ -40,11 +42,25 @@ client = discord.Client()
 
 # 文字列の変換
 def convertText(message):
+    # 辞書登録の変換
+    pronunciation = get_shovelsugi_word(message)
+    convetText = message.replace(message, pronunciation)
+    # 辞書登録の顔文字を変換
+    m = re.match(".*(<.+>).*", convetText)
+    if m:
+        kaomoji = m.group(1)
+        pronunciation = get_shovelsugi_word(kaomoji)
+        convetText = re.sub("<.+>", pronunciation, convetText)
+    else:
+        print("不一致")
     # wwをわらわらに変換
-    convertText = re.sub('[wWwWｗ]{5,}', 'おおわらわら', message)
+    convertText = re.sub('[wWwWｗ]{5,}', 'おおわらわら', convetText)
     convertText = re.sub('[wWwWｗ]{2,}', 'わらわら', convertText)
+    # URLを省略
     convertText = re.sub('https?://[\w/:%#\$&\?\(\)~\.=\+\-]+', 'URL省略', convertText)
+
     print({
+        "title": "convertText",
         "元メッセージ": message,
         "変換後": convertText
     })
@@ -118,7 +134,7 @@ def get_shovelsugi_vc(userID):
     announcer = response["Item"]["announcer"]["S"] if "announcer" in response["Item"] else "Mizuki"
     return vocal_tract_length, pitch, announcer
 
-# shovelsugi_vcからuserIDをキーにデータを設定
+# shovelsugi_vcにuserIDをキーにデータを設定
 def put_shovelsugi_vc(userID, vocal_tract_length, pitch, announcer):
     dynamodb.put_item(
         Item={
@@ -137,6 +153,37 @@ def put_shovelsugi_vc(userID, vocal_tract_length, pitch, announcer):
         },
         TableName=VC_TABLE,
     )
+
+
+# shovelsugi_dictにwordをキーにデータを設定
+def put_shovelsugi_dict(word, pronunciation):
+    dynamodb.put_item(
+        Item={
+            'word': {
+                'S': word,
+            },
+            'pronunciation': {
+                'S': pronunciation,
+            },
+        },
+        TableName=ALIAS_TABLE,
+    )
+
+
+# shovelsugi_vcからuserIDをキーにデータ取得
+def get_shovelsugi_word(word):
+    response = dynamodb.get_item(
+        Key={
+            'word': {
+                'S': word,
+            },
+        },
+        TableName=ALIAS_TABLE,
+    )
+    if not "Item" in response:
+        return word
+    pronunciation = response["Item"]["pronunciation"]["S"] if "pronunciation" in response["Item"] else word
+    return pronunciation
 
 
 # 数字に変換可能かの判定
@@ -254,6 +301,16 @@ async def on_message(message):
             announcer = input[1]
             db_vocal_tract_length, db_pitch, db_announcer = get_shovelsugi_vc(userID)
             put_shovelsugi_vc(userID, db_vocal_tract_length, db_pitch, announcer)
+            return
+        # 辞書登録コマンド
+        # ;alias args1 args2
+        if command == COMMAND_ALIAS:
+            if len(input) != 3:
+                await message.channel.send(";alias 単語 読み方 の形式で入力してください")
+                return
+            word = input[1]
+            pronunciation = input[2]
+            put_shovelsugi_dict(word, pronunciation)
             return
     # 通常の文章の場合
     elif botJoinChannel == message.channel:
