@@ -224,20 +224,24 @@ async def on_voice_state_update(member, before, after):
     if member.bot:
         # 何もせず終了
         return
-    # botがVCに参加していない場合
-    if botJoinVoiceChannel is None:
-        # 何もせず終了
-        return
     # 雑談用VCにメンバーが入室時
-    if after.channel.name == zatsudanVoiceChannel: 
+    if after.channel is not None and after.channel.name == zatsudanVoiceChannel: 
         global zatsudanVoiceChannelCount
+        print({
+            "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount,
+            "after.channel.name": after.channel.name,
+        })
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
         if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
             # 入室メッセージを送る
             channel = client.get_channel(zatsudanChatChannelId)
             await channel.send(zatsudanMessage(member.name))
-        zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
+        zatsudanVoiceChannelCount = len(after.channel.voice_states.keys())
+    # botがVCに参加していない場合
+    if botJoinVoiceChannel is None:
+        # 何もせず終了
+        return
     # botJoinVoiceChannelからメンバーが退室時
     if before.channel == botJoinVoiceChannel: 
         # botJoinVoiceChannelにいるメンバーの人数チェック
@@ -246,6 +250,7 @@ async def on_voice_state_update(member, before, after):
             await member.guild.voice_client.disconnect()
             botJoinChannel = None
             botJoinVoiceChannel = None
+        zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
 
 # メッセージ受信時に動作する処理
 @client.event
