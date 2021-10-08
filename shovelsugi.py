@@ -28,6 +28,9 @@ botJoinVoiceChannel = None
 secret_name = "shovelsugi"
 message_queue = deque([])
 announcers = ["Mizuki", "Takumi", "Joanna", "Matthew"]
+zatsudanVoiceChannelCount = 0
+zatsudanVoiceChannel = "飲酒雑談用VC"
+zatsudanChatChannelId = "824238020252925952"
 
 # DISCORD_TOKEN取得
 try:
@@ -216,6 +219,16 @@ async def on_voice_state_update(member, before, after):
     if botJoinVoiceChannel is None:
         # 何もせず終了
         return
+    # 雑談用VCにメンバーが入室時
+    if after.channel.name == zatsudanVoiceChannel: 
+        global zatsudanVoiceChannelCount
+        # botJoinVoiceChannelにいるメンバーの人数チェック
+        # len(after.channel.members)だとbot入室後のアクティブユーザのみカウントされる
+        if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
+            # 入室メッセージを送る
+            channel = client.get_channel(zatsudanChatChannelId)
+            await channel.send('hello')
+        zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
     # botJoinVoiceChannelからメンバーが退室時
     if before.channel == botJoinVoiceChannel: 
         # botJoinVoiceChannelにいるメンバーの人数チェック
