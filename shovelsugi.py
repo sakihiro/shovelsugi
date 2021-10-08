@@ -29,8 +29,8 @@ secret_name = "shovelsugi"
 message_queue = deque([])
 announcers = ["Mizuki", "Takumi", "Joanna", "Matthew"]
 zatsudanVoiceChannelCount = 0
-zatsudanVoiceChannel = "飲酒雑談用VC"
-zatsudanChatChannelId = "824238020252925952"
+zatsudanVoiceChannel = "雑談用VC"
+zatsudanChatChannelId = 824238020252925952
 
 # DISCORD_TOKEN取得
 try:
@@ -104,6 +104,15 @@ def helpMessage():
             英語： Joanna（女性）/Matthew（男性）
         ;alias 文字 読み方: 辞書登録
     """
+
+
+# helpメッセージ
+def zatsudanMessage(userName):
+    return f"""
+        <@&884356359024439336>
+        {userName}が入室しました。
+    """
+
 
 # 読み上げ速度の調整
 def setPitch(vocal_tract_length):
@@ -227,7 +236,7 @@ async def on_voice_state_update(member, before, after):
         if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
             # 入室メッセージを送る
             channel = client.get_channel(zatsudanChatChannelId)
-            await channel.send('hello')
+            await channel.send(zatsudanMessage(member.name))
         zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
     # botJoinVoiceChannelからメンバーが退室時
     if before.channel == botJoinVoiceChannel: 
