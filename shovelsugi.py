@@ -27,6 +27,7 @@ botJoinChannel = None
 botJoinVoiceChannel = None
 secret_name = "shovelsugi"
 message_queue = deque([])
+announcers = ["Mizuki", "Takumi", "Joanna", "Matthew"]
 
 # DISCORD_TOKEN取得
 try:
@@ -95,7 +96,10 @@ def helpMessage():
         ;bye: botの停止
         ;help: コマンド一覧
         ;vc 数字（-50 ~ 200）: 声の高さの変更（;vc 120）
-        ;an Mizuki/Takumi: 性別の切り替え（;an Mizuki）
+        ;an Mizuki/Takumi: 読み手の切り替え（;an Mizuki）
+            日本語： Mizuki（女性）/Takumi（男性）
+            英語： Joanna（女性）/Matthew（男性）
+        ;alias 文字 読み方: 辞書登録
     """
 
 # 読み上げ速度の調整
@@ -295,8 +299,8 @@ async def on_message(message):
             if len(input) != 2:
                 await message.channel.send(";vc MizukiまたはTakumi の形式で入力してください")
                 return
-            if input[1] != "Mizuki" and input[1] != "Takumi":
-                await message.channel.send("MizukiまたはTakumiを指定してください")
+            if input[1] not in announcers:
+                await message.channel.send(f"{announcers}の中から指定してください")
                 return
             announcer = input[1]
             db_vocal_tract_length, db_pitch, db_announcer = get_shovelsugi_vc(userID)
