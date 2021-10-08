@@ -223,7 +223,7 @@ async def on_voice_state_update(member, before, after):
     if after.channel.name == zatsudanVoiceChannel: 
         global zatsudanVoiceChannelCount
         # botJoinVoiceChannelにいるメンバーの人数チェック
-        # len(after.channel.members)だとbot入室後のアクティブユーザのみカウントされる
+        # 人数が、0人から1人に遷移したとき
         if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
             # 入室メッセージを送る
             channel = client.get_channel(zatsudanChatChannelId)
