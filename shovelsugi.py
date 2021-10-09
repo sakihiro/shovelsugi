@@ -108,8 +108,10 @@ def helpMessage():
 
 # helpメッセージ
 def zatsudanMessage(userName):
+    # <@!767249067553849355>: デバッグ
+    # <@&884356359024439336>: リリース用
     return f"""
-        <@&884356359024439336>
+        <@!767249067553849355>
         {userName}が入室しました。
     """
 
@@ -220,13 +222,14 @@ async def on_ready():
 @client.event
 async def on_voice_state_update(member, before, after): 
     global botJoinChannel, botJoinVoiceChannel
-    # 入退室がbotの場合
-    if member.bot:
-        # 何もせず終了
-        return
     # 雑談用VCにメンバーが入室時
     if after.channel is not None and after.channel.name == zatsudanVoiceChannel:
         global zatsudanVoiceChannelCount
+        print({
+            "member.name": member.name,
+            "after.channel.name": after.channel.name,
+            "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount
+        })
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
         if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
@@ -236,7 +239,15 @@ async def on_voice_state_update(member, before, after):
         zatsudanVoiceChannelCount = len(after.channel.voice_states.keys())
     # 雑談用VCからメンバーが退室時
     if before.channel is not None and before.channel.name == zatsudanVoiceChannel:
+        print({
+            "before.channel.name": before.channel.name,
+            "len(before.channel.voice_states.keys())": len(before.channel.voice_states.keys())
+        })
         zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
+    # 入退室がbotの場合
+    if member.bot:
+        # 何もせず終了
+        return
     # botがVCに参加していない場合
     if botJoinVoiceChannel is None:
         # 何もせず終了
