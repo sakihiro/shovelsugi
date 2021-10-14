@@ -73,13 +73,15 @@ def convertText(message):
 # 文字列の変換
 def personalized(user, message):
     vocal_tract_length, pitch, announcer = get_shovelsugi_vc(user)
-    tag_start = f'<speak><amazon:effect vocal-tract-length="{vocal_tract_length}%">'
-    tag_end = '</amazon:effect></speak>'
+    tag_start = f'<speak><amazon:effect vocal-tract-length="{vocal_tract_length}%"><prosody pitch="{pitch}">'
+    tag_end = '</prosody></amazon:effect></speak>'
     personalized_text = tag_start + message + tag_end
     print({
         "元メッセージ": message,
         "変換後": personalized_text,
         "voiceID": announcer,
+        "vocal_tract_length": vocal_tract_length,
+        "pitch": pitch,
     })
     return polly.synthesize_speech(
             OutputFormat='mp3',
@@ -111,29 +113,24 @@ def zatsudanMessage(userName):
     # <@!767249067553849355>: デバッグ
     # <@&884356359024439336>: リリース用
     return f"""
-        <@!767249067553849355>
+        <@&884356359024439336>
         {userName}が入室しました。
     """
 
 
 # 読み上げ速度の調整
-def setPitch(vocal_tract_length):
-    if len(vocal_tract_length) < -25:
-        return "30"
-    elif len(vocal_tract_length) < 0:
-        return "20"
-    elif len(vocal_tract_length) < 50:
-        return "10"
-    elif len(vocal_tract_length) <= 100:
-        return "0"
-    elif len(vocal_tract_length) < 125:
-        return "-10"
-    elif len(vocal_tract_length) < 150:
-        return "-20"
-    elif len(vocal_tract_length) < 175:
-        return "-40"
-    elif len(vocal_tract_length) <= 200:
-        return "-80"
+def setPitch(tract_length):
+    vocal_tract_length = int(tract_length)
+    if vocal_tract_length < 0:
+        return "x-high"
+    elif vocal_tract_length < 50:
+        return "high"
+    elif vocal_tract_length <= 100:
+        return "medium"
+    elif vocal_tract_length < 150:
+        return "low"
+    elif vocal_tract_length <= 200:
+        return "x-low"
 
 # shovelsugi_vcからuserIDをキーにデータ取得
 def get_shovelsugi_vc(userID):
@@ -146,9 +143,9 @@ def get_shovelsugi_vc(userID):
         TableName=VC_TABLE,
     )
     if not "Item" in response:
-        return "100", "0", "Mizuki"
+        return "100", "medium", "Mizuki"
     vocal_tract_length = response["Item"]["vocal_tract_length"]["S"] if "vocal_tract_length" in response["Item"] else "100"
-    pitch = response["Item"]["pitch"]["S"] if "pitch" in response["Item"] else "0"
+    pitch = response["Item"]["pitch"]["S"] if "pitch" in response["Item"] else "medium"
     announcer = response["Item"]["announcer"]["S"] if "announcer" in response["Item"] else "Mizuki"
     return vocal_tract_length, pitch, announcer
 
@@ -345,11 +342,12 @@ async def on_message(message):
         # 辞書登録コマンド
         # ;alias args1 args2
         if command == COMMAND_ALIAS:
-            if len(input) != 3:
+            if len(input) < 3:
                 await message.channel.send(";alias 単語 読み方 の形式で入力してください")
                 return
             word = input[1]
-            pronunciation = input[2]
+            pronunciation_list = input[2:]
+            pronunciation = ' '.join(pronunciation_list)
             put_shovelsugi_dict(word, pronunciation)
             return
     # 通常の文章の場合
