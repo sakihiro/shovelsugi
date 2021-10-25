@@ -1,9 +1,12 @@
 # インストールした discord.py を読み込む
+import yaml
 import discord
 import boto3
 import re
 import datetime
 import time
+import sys
+
 from collections import deque
 from botocore.exceptions import ClientError
 
@@ -12,15 +15,23 @@ polly = boto3.client('polly')
 secretsmanager = boto3.client('secretsmanager')
 dynamodb = boto3.client('dynamodb')
 
+args = sys.argv
+env = args[1] if len(args) == 2 else "dev"
+# configファイルの読み込み
+with open('./config/config.yaml', 'r') as yml:
+    config = yaml.safe_load(yml)
+config_env = config[env]
+command = config_env["command"]
+token = config_env["token"]
 # 変数
 TOKEN = ""
 PREFIX = ";"
-COMMAND_START = "shl"
-COMMAND_END = "bye"
-COMMAND_HELP = "help"
-COMMAND_VC = "vc"
-COMMAND_AN = "an"
-COMMAND_ALIAS = "alias"
+COMMAND_START = command["COMMAND_START"]
+COMMAND_END = command["COMMAND_END"]
+COMMAND_HELP = command["COMMAND_HELP"]
+COMMAND_VC = command["COMMAND_VC"]
+COMMAND_AN = command["COMMAND_AN"]
+COMMAND_ALIAS = command["COMMAND_ALIAS"]
 VC_TABLE = "shovelsugi_vc"
 ALIAS_TABLE = "shovelsugi_dict"
 botJoinChannel = None
@@ -37,7 +48,7 @@ try:
     get_secret_value_response = secretsmanager.get_secret_value(
         SecretId=secret_name
     )
-    TOKEN = eval(get_secret_value_response["SecretString"])["BOT_TOKEN_DEV"]
+    TOKEN = eval(get_secret_value_response["SecretString"])[token["BOT_TOKEN"]]
 except ClientError as e:
     raise e
 
