@@ -37,7 +37,7 @@ try:
     get_secret_value_response = secretsmanager.get_secret_value(
         SecretId=secret_name
     )
-    TOKEN = eval(get_secret_value_response["SecretString"])["BOT_TOKEN"]
+    TOKEN = eval(get_secret_value_response["SecretString"])["BOT_TOKEN_DEV"]
 except ClientError as e:
     raise e
 
