@@ -1,0 +1,20 @@
+prod: 
+  token:
+    BOT_TOKEN: BOT_TOKEN 
+  command:
+    COMMAND_START: shl
+    COMMAND_END: bye
+    COMMAND_HELP: help
+    COMMAND_VC: vc
+    COMMAND_AN: an
+    COMMAND_ALIAS: alias
+dev: 
+  token:
+    BOT_TOKEN: BOT_TOKEN_DEV
+  command:
+    COMMAND_START: shl_dev
+    COMMAND_END: bye_dev
+    COMMAND_HELP: help_dev
+    COMMAND_VC: vc_dev
+    COMMAND_AN: an_dev
+    COMMAND_ALIAS: alias_dev
