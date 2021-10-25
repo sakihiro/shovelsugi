@@ -238,6 +238,9 @@ async def on_voice_state_update(member, before, after):
             "after.channel.name": after.channel.name,
             "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount
         })
+        # 本番環境botではない場合、処理終了
+        if env is not "prod":
+            return
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
         if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
