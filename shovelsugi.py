@@ -55,6 +55,11 @@ except ClientError as e:
 # 接続に必要なオブジェクトを生成
 client = discord.Client()
 
+# 現在時刻の取得
+def currentTime():
+    now = datetime.datetime.now()
+    return now.strftime("%Y%m%d%H%M%S")
+
 # 文字列の変換
 def convertText(message):
     # 辞書登録の変換
@@ -77,7 +82,8 @@ def convertText(message):
     print({
         "title": "convertText",
         "元メッセージ": message,
-        "変換後": convertText
+        "変換後": convertText,
+        "date": currentTime(),
     })
     return convertText
 
@@ -93,6 +99,7 @@ def personalized(user, message):
         "voiceID": announcer,
         "vocal_tract_length": vocal_tract_length,
         "pitch": pitch,
+        "date": currentTime(),
     })
     return polly.synthesize_speech(
             OutputFormat='mp3',
@@ -236,7 +243,8 @@ async def on_voice_state_update(member, before, after):
         print({
             "member.name": member.name,
             "after.channel.name": after.channel.name,
-            "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount
+            "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount,
+            "date": currentTime(),
         })
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
@@ -249,7 +257,8 @@ async def on_voice_state_update(member, before, after):
     if before.channel is not None and before.channel.name == zatsudanVoiceChannel:
         print({
             "before.channel.name": before.channel.name,
-            "len(before.channel.voice_states.keys())": len(before.channel.voice_states.keys())
+            "len(before.channel.voice_states.keys())": len(before.channel.voice_states.keys()),
+            "date": currentTime(),
         })
         zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
     # 入退室がbotの場合
