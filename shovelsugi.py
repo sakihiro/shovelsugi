@@ -131,7 +131,7 @@ def zatsudanMessage(userName):
     # <@!767249067553849355>: デバッグ
     # <@&884356359024439336>: リリース用
     return f"""
-        <@&884356359024439336>
+        <@!767249067553849355>
         {userName}が入室しました。
     """
 
@@ -244,6 +244,7 @@ async def on_voice_state_update(member, before, after):
             "member.name": member.name,
             "after.channel.name": after.channel.name,
             "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount,
+            "len(after.channel.voice_states.keys())": len(after.channel.voice_states.keys()),
             "date": currentTime(),
         })
         # botJoinVoiceChannelにいるメンバーの人数チェック
