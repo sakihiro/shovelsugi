@@ -1,3 +1,7 @@
+__pycache__/
 mp3/
 *.mp3
-nohup.out
+*nohup.out
+*.sw*
+*.log
+*.txt

@@ -6,6 +6,14 @@ import re
 import datetime
 import time
 import sys
+import sugi_messages
+import logging
+
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
 
 from collections import deque
 from botocore.exceptions import ClientError
@@ -55,6 +63,11 @@ except ClientError as e:
 # 接続に必要なオブジェクトを生成
 client = discord.Client()
 
+# 現在時刻の取得
+def currentTime():
+    now = datetime.datetime.now()
+    return now.strftime("%Y%m%d%H%M%S")
+
 # 文字列の変換
 def convertText(message):
     # 辞書登録の変換
@@ -77,7 +90,8 @@ def convertText(message):
     print({
         "title": "convertText",
         "元メッセージ": message,
-        "変換後": convertText
+        "変換後": convertText,
+        "date": currentTime(),
     })
     return convertText
 
@@ -93,6 +107,7 @@ def personalized(user, message):
         "voiceID": announcer,
         "vocal_tract_length": vocal_tract_length,
         "pitch": pitch,
+        "date": currentTime(),
     })
     return polly.synthesize_speech(
             OutputFormat='mp3',
@@ -229,7 +244,14 @@ async def on_ready():
 # VCでのメンバーの入退室時に動作する処理
 @client.event
 async def on_voice_state_update(member, before, after): 
-    global botJoinChannel, botJoinVoiceChannel
+    global botJoinChannel, botJoinVoiceChannel, zatsudanVoiceChannelCount
+    print({
+        "title": "入退室ログ",
+        "member.name": member.name,
+        "after.channel.name": after.channel.name if after.channel is not None else None,
+        "before.channel.name": before.channel.name if before.channel is not None else None,
+        "date": currentTime(),
+    })
     # 雑談用VCにメンバーが入室時
     if after.channel is not None and after.channel.name == zatsudanVoiceChannel:
         global zatsudanVoiceChannelCount
@@ -241,10 +263,21 @@ async def on_voice_state_update(member, before, after):
         # 本番環境botではない場合、処理終了
         if env is not "prod":
             return
+        if after.channel is not None and before.channel is not None and before.channel.name == after.channel.name:
+            # ミュート状態変更なので、何もせず終了
+            return
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
         # 開発shovvelnのためコメントアウト
         # if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
+        #     print({
+        #         "title": "入室ログ",
+        #         "member.name": member.name,
+        #         "after.channel.name": after.channel.name,
+        #         "zatsudanVoiceChannelCount": zatsudanVoiceChannelCount,
+        #         "len(after.channel.voice_states.keys())": len(after.channel.voice_states.keys()),
+        #         "date": currentTime(),
+        #     })
         #     # 入室メッセージを送る
         #     channel = client.get_channel(zatsudanChatChannelId)
         #     await channel.send(zatsudanMessage(member.name))
@@ -252,8 +285,10 @@ async def on_voice_state_update(member, before, after):
     # 雑談用VCからメンバーが退室時
     if before.channel is not None and before.channel.name == zatsudanVoiceChannel:
         print({
+            "title": "退室ログ",
             "before.channel.name": before.channel.name,
-            "len(before.channel.voice_states.keys())": len(before.channel.voice_states.keys())
+            "len(before.channel.voice_states.keys())": len(before.channel.voice_states.keys()),
+            "date": currentTime(),
         })
         zatsudanVoiceChannelCount = len(before.channel.voice_states.keys())
     # 入退室がbotの場合
@@ -265,7 +300,7 @@ async def on_voice_state_update(member, before, after):
         # 何もせず終了
         return
     # botJoinVoiceChannelからメンバーが退室時
-    if before.channel == botJoinVoiceChannel: 
+    if before.channel == botJoinVoiceChannel:
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # len(before.channel.members)だとbot入室後のアクティブユーザのみカウントされる
         if len(before.channel.voice_states.keys()) == 1:
