@@ -7,6 +7,10 @@ import datetime
 import time
 import sys
 import sugi_messages
+import logging
+
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
 
 from collections import deque
 from botocore.exceptions import ClientError
