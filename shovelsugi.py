@@ -247,8 +247,8 @@ async def on_voice_state_update(member, before, after):
     })
     # 雑談用VCにメンバーが入室時
     if after.channel is not None and after.channel.name == zatsudanVoiceChannel:
-        if after.channel is not None and before.channel is not None and before.channel.name != after.channel.name:
-            # 何もせず終了
+        if after.channel is not None and before.channel is not None and before.channel.name == after.channel.name:
+            # ミュート状態変更なので、何もせず終了
             return
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
