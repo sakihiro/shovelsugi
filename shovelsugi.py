@@ -243,11 +243,12 @@ async def on_voice_state_update(member, before, after):
             return
         # botJoinVoiceChannelにいるメンバーの人数チェック
         # 人数が、0人から1人に遷移したとき
-        if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
-            # 入室メッセージを送る
-            channel = client.get_channel(zatsudanChatChannelId)
-            await channel.send(zatsudanMessage(member.name))
-        zatsudanVoiceChannelCount = len(after.channel.voice_states.keys())
+        # 開発shovvelnのためコメントアウト
+        # if zatsudanVoiceChannelCount == 0 and len(after.channel.voice_states.keys()) == 1:
+        #     # 入室メッセージを送る
+        #     channel = client.get_channel(zatsudanChatChannelId)
+        #     await channel.send(zatsudanMessage(member.name))
+        # zatsudanVoiceChannelCount = len(after.channel.voice_states.keys())
     # 雑談用VCからメンバーが退室時
     if before.channel is not None and before.channel.name == zatsudanVoiceChannel:
         print({
